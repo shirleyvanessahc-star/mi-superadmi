@@ -84,30 +84,17 @@
             </div>
         </div>
 
-        <!-- ===== PRODUCTOS ===== -->
+        <!-- ===== PRODUCTOS Y PLANES (acordeón) ===== -->
         <section class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold text-gray-800"><i class="fa-solid fa-cubes text-indigo-500 mr-2"></i>Tus productos (artefactos)</h2>
+                <h2 class="text-lg font-semibold text-gray-800"><i class="fa-solid fa-cubes text-indigo-500 mr-2"></i>Tus productos y planes</h2>
                 <button onclick="abrirModalProducto()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-3 py-1.5 rounded-lg">
                     <i class="fa-solid fa-plus mr-1"></i>Nuevo producto
                 </button>
             </div>
-            <p class="text-xs text-gray-400 mb-4">Cada "producto" es una app distinta que vendes — Carta Digital, Centro de Belleza, Lab Dental... Cada uno tiene sus propios planes.</p>
-            <div id="lista-productos" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <p class="text-xs text-gray-400 mb-4">Toca un producto para ver (o agregar) sus planes.</p>
+            <div id="lista-productos" class="space-y-3">
                 <p class="text-gray-400 text-sm">Cargando productos...</p>
-            </div>
-        </section>
-
-        <!-- ===== PLANES ===== -->
-        <section class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold text-gray-800"><i class="fa-solid fa-layer-group text-indigo-500 mr-2"></i>Planes que ofreces</h2>
-                <button onclick="abrirModalPlan()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-3 py-1.5 rounded-lg">
-                    <i class="fa-solid fa-plus mr-1"></i>Nuevo plan
-                </button>
-            </div>
-            <div id="lista-planes" class="space-y-5">
-                <p class="text-gray-400 text-sm">Cargando planes...</p>
             </div>
         </section>
 
@@ -436,24 +423,63 @@
         }
 
         /* =========================================================
-           4. PRODUCTOS — crear, listar, editar, borrar
+           4. PRODUCTOS Y PLANES — acordeón: tocas el producto, se
+           despliegan (o esconden) sus planes debajo.
         ========================================================= */
+        let productosAbiertos = {}; // recuerda qué acordeones están desplegados
+
         function renderizarProductos() {
             const container = document.getElementById("lista-productos");
             if (todosLosProductos.length === 0) {
                 container.innerHTML = '<p class="text-gray-400 text-sm">Aún no has creado ningún producto. Crea uno (ej. "Carta Digital") antes de agregar planes.</p>';
                 return;
             }
-            container.innerHTML = todosLosProductos.map(prod => `
-                <div class="border border-gray-200 rounded-lg p-4">
-                    <p class="font-bold text-gray-800"><i class="fa-solid fa-cube text-indigo-400 mr-1"></i>${prod.nombre}</p>
-                    <p class="text-xs text-gray-500 mt-1">${prod.descripcion || ''}</p>
-                    <div class="flex gap-3 mt-3 text-xs">
-                        <button onclick="abrirModalProducto('${prod.id}')" class="text-blue-600 hover:underline">Editar</button>
-                        <button onclick="borrarProducto('${prod.id}')" class="text-red-500 hover:underline">Borrar</button>
+
+            container.innerHTML = todosLosProductos.map(prod => {
+                const planesDelProducto = todosLosPlanes.filter(p => p.productoId === prod.id);
+                const abierto = !!productosAbiertos[prod.id];
+
+                const tarjetasPlanes = planesDelProducto.length > 0
+                    ? planesDelProducto.map(plan => `
+                        <div class="border border-gray-200 rounded-lg p-3 bg-white">
+                            <p class="font-bold text-gray-800 text-sm">${plan.nombre}</p>
+                            <p class="text-indigo-600 font-black">${parseFloat(plan.precio).toFixed(2)}€<span class="text-xs text-gray-400 font-normal">/mes</span></p>
+                            <p class="text-xs text-gray-500 mt-1">${plan.descripcion || ''}</p>
+                            <div class="flex gap-3 mt-2 text-xs">
+                                <button onclick="event.stopPropagation(); abrirModalPlan('${plan.id}')" class="text-blue-600 hover:underline">Editar</button>
+                                <button onclick="event.stopPropagation(); borrarPlan('${plan.id}')" class="text-red-500 hover:underline">Borrar</button>
+                            </div>
+                        </div>
+                    `).join('')
+                    : '<p class="text-gray-400 text-xs col-span-full">Este producto todavía no tiene planes.</p>';
+
+                return `
+                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                        <button onclick="toggleProducto('${prod.id}')" class="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 transition-colors">
+                            <div>
+                                <p class="font-bold text-gray-800"><i class="fa-solid fa-cube text-indigo-400 mr-1"></i>${prod.nombre}</p>
+                                <p class="text-xs text-gray-500 mt-0.5">${prod.descripcion || ''} <span class="text-gray-300">&middot;</span> ${planesDelProducto.length} plan${planesDelProducto.length === 1 ? '' : 'es'}</p>
+                            </div>
+                            <i class="fa-solid fa-chevron-down text-gray-400 transition-transform ${abierto ? 'rotate-180' : ''}"></i>
+                        </button>
+                        <div class="${abierto ? '' : 'hidden'} border-t border-gray-100 bg-gray-50 p-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
+                                ${tarjetasPlanes}
+                            </div>
+                            <div class="flex gap-4 text-xs pt-3 border-t border-gray-200">
+                                <button onclick="event.stopPropagation(); abrirModalPlan(null, '${prod.id}')" class="text-indigo-600 hover:underline font-semibold"><i class="fa-solid fa-plus mr-1"></i>Nuevo plan aquí</button>
+                                <button onclick="event.stopPropagation(); abrirModalProducto('${prod.id}')" class="text-blue-600 hover:underline">Editar producto</button>
+                                <button onclick="event.stopPropagation(); borrarProducto('${prod.id}')" class="text-red-500 hover:underline">Borrar producto</button>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
+        }
+
+        function toggleProducto(id) {
+            productosAbiertos[id] = !productosAbiertos[id];
+            renderizarProductos();
         }
 
         function renderizarSelectProductos() {
@@ -521,49 +547,14 @@
         /* =========================================================
            5. PLANES — crear, listar, editar, borrar
         ========================================================= */
+        // Ya no existe una sección separada de planes — quedó fusionada en
+        // el acordeón de renderizarProductos(). Este alias evita errores
+        // por si algo la sigue llamando desde otro lugar.
         function renderizarPlanes() {
-            const container = document.getElementById("lista-planes");
-            if (todosLosProductos.length === 0) {
-                container.innerHTML = '<p class="text-gray-400 text-sm">Crea primero un producto arriba.</p>';
-                return;
-            }
-            if (todosLosPlanes.length === 0) {
-                container.innerHTML = '<p class="text-gray-400 text-sm">Aún no has creado ningún plan.</p>';
-                return;
-            }
-
-            // Agrupa los planes por producto para que se entienda a qué pertenece cada uno
-            const grupos = {};
-            todosLosPlanes.forEach(plan => {
-                const key = plan.productoId || 'sin-producto';
-                if (!grupos[key]) grupos[key] = [];
-                grupos[key].push(plan);
-            });
-
-            container.innerHTML = Object.keys(grupos).map(key => {
-                const producto = todosLosProductos.find(p => p.id === key);
-                const nombreProducto = producto ? producto.nombre : 'Sin producto asignado';
-                const tarjetas = grupos[key].map(plan => `
-                    <div class="border border-gray-200 rounded-lg p-4 relative">
-                        <p class="font-bold text-gray-800">${plan.nombre}</p>
-                        <p class="text-indigo-600 font-black text-lg">${parseFloat(plan.precio).toFixed(2)}€<span class="text-xs text-gray-400 font-normal">/mes</span></p>
-                        <p class="text-xs text-gray-500 mt-1">${plan.descripcion || ''}</p>
-                        <div class="flex gap-3 mt-3 text-xs">
-                            <button onclick="abrirModalPlan('${plan.id}')" class="text-blue-600 hover:underline">Editar</button>
-                            <button onclick="borrarPlan('${plan.id}')" class="text-red-500 hover:underline">Borrar</button>
-                        </div>
-                    </div>
-                `).join('');
-                return `
-                    <div>
-                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">${nombreProducto}</h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">${tarjetas}</div>
-                    </div>
-                `;
-            }).join('');
+            renderizarProductos();
         }
 
-        function abrirModalPlan(id) {
+        function abrirModalPlan(id, productoPreseleccionado) {
             if (todosLosProductos.length === 0) {
                 alert("Primero crea al menos un producto.");
                 return;
@@ -584,6 +575,9 @@
                     document.getElementById("plan-descripcion").value = plan.descripcion || "";
                     document.getElementById("titulo-modal-plan").innerText = "Editar plan";
                 }
+            } else if (productoPreseleccionado) {
+                // Viene del botón "Nuevo plan aquí" dentro de un producto ya abierto
+                document.getElementById("plan-producto").value = productoPreseleccionado;
             }
             const modal = document.getElementById("modal-plan");
             modal.classList.remove("hidden");
